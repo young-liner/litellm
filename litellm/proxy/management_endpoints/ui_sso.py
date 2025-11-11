@@ -152,24 +152,26 @@ async def google_login(
         or google_client_id is not None
         or generic_client_id is not None
     ):
-        if premium_user is not True:
-            # Check if under 'free SSO user' limit
-            if prisma_client is not None:
-                total_users = await prisma_client.db.litellm_usertable.count()
-                if total_users and total_users > 5:
-                    raise ProxyException(
-                        message="You must be a LiteLLM Enterprise user to use SSO for more than 5 users. If you have a license please set `LITELLM_LICENSE` in your env. If you want to obtain a license meet with us here: https://calendly.com/d/4mp-gd3-k5k/litellm-1-1-onboarding-chat You are seeing this error message because You set one of `MICROSOFT_CLIENT_ID`, `GOOGLE_CLIENT_ID`, or `GENERIC_CLIENT_ID` in your env. Please unset this",
-                        type=ProxyErrorTypes.auth_error,
-                        param="premium_user",
-                        code=status.HTTP_403_FORBIDDEN,
-                    )
-            else:
-                raise ProxyException(
-                    message=CommonProxyErrors.db_not_connected_error.value,
-                    type=ProxyErrorTypes.auth_error,
-                    param="premium_user",
-                    code=status.HTTP_403_FORBIDDEN,
-                )
+        # CUSTOM: 5명 사용자 제한 제거 - SSO 로그인 시 체크 비활성화
+        # if premium_user is not True:
+        #     # Check if under 'free SSO user' limit
+        #     if prisma_client is not None:
+        #         total_users = await prisma_client.db.litellm_usertable.count()
+        #         if total_users and total_users > 5:
+        #             raise ProxyException(
+        #                 message="You must be a LiteLLM Enterprise user to use SSO for more than 5 users. If you have a license please set `LITELLM_LICENSE` in your env. If you want to obtain a license meet with us here: https://calendly.com/d/4mp-gd3-k5k/litellm-1-1-onboarding-chat You are seeing this error message because You set one of `MICROSOFT_CLIENT_ID`, `GOOGLE_CLIENT_ID`, or `GENERIC_CLIENT_ID` in your env. Please unset this",
+        #                 type=ProxyErrorTypes.auth_error,
+        #                 param="premium_user",
+        #                 code=status.HTTP_403_FORBIDDEN,
+        #             )
+        #     else:
+        #         raise ProxyException(
+        #             message=CommonProxyErrors.db_not_connected_error.value,
+        #             type=ProxyErrorTypes.auth_error,
+        #             param="premium_user",
+        #             code=status.HTTP_403_FORBIDDEN,
+        #         )
+        pass  # 5명 제한 체크 비활성화됨
 
     ####### Detect DB + MASTER KEY in .env #######
     missing_env_vars = show_missing_vars_in_env()

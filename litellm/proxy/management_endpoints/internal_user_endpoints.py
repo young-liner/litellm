@@ -364,13 +364,15 @@ async def new_user(
         # Check for duplicate email
         await _check_duplicate_user_email(data.user_email, prisma_client)
 
+        # CUSTOM: 5명 사용자 제한 제거 - 새 사용자 생성 시 체크 비활성화
         # Check if license is over limit
-        total_users = await prisma_client.db.litellm_usertable.count()
-        if total_users and _license_check.is_over_limit(total_users=total_users):
-            raise HTTPException(
-                status_code=403,
-                detail="License is over limit. Please contact support@berri.ai to upgrade your license.",
-            )
+        # total_users = await prisma_client.db.litellm_usertable.count()
+        # if total_users and _license_check.is_over_limit(total_users=total_users):
+        #     raise HTTPException(
+        #         status_code=403,
+        #         detail="License is over limit. Please contact support@berri.ai to upgrade your license.",
+        #     )
+        pass  # 5명 제한 체크 비활성화됨
 
         data_json = data.json()  # type: ignore
         data_json = _update_internal_new_user_params(data_json, data)
