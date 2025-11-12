@@ -190,7 +190,50 @@ ENV NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
 RUN chmod +x docker/build_admin_ui.sh && ./docker/build_admin_ui.sh
 ```
 
-**참고**: Dockerfile에 직접 설정되어 있으므로, Docker 이미지를 빌드하면 자동으로 Usage 패널이 숨겨집니다.
+**참고**: 
+- Dockerfile에 직접 설정되어 있으므로, Docker 이미지를 빌드하면 자동으로 Usage 패널이 숨겨집니다.
+- `build_admin_ui.sh`도 수정하여 enterprise 모드가 아니어도 UI를 새로 빌드하도록 변경했습니다.
+
+**⚠️ 중요 - build_admin_ui.sh 수정이 필요한 이유:**
+
+원래 `build_admin_ui.sh`는 `enterprise_colors.json` 파일이 없으면 UI 빌드를 스킵했습니다:
+
+```bash
+# 원본 코드
+if [ ! -f "enterprise/enterprise_ui/enterprise_colors.json" ]; then
+    echo "Admin UI - using default LiteLLM UI"
+    exit 0  # ← UI 빌드 없이 종료!
+fi
+```
+
+이로 인해:
+- ❌ 환경 변수가 설정되어도 UI가 새로 빌드되지 않음
+- ❌ 기본 패키징된 UI(환경 변수 없이 빌드된 버전)를 사용
+- ❌ `NEXT_PUBLIC_HIDE_USAGE_INDICATOR`가 적용되지 않음
+
+수정 후:
+- ✅ Enterprise 모드가 아니어도 UI를 새로 빌드
+- ✅ 환경 변수가 빌드 타임에 적용됨
+- ✅ Usage 패널이 올바르게 숨겨짐
+
+**⚠️ 추가 수정 - build_ui.sh에서 환경 변수 확실히 적용:**
+
+Next.js 정적 빌드에서 환경 변수를 확실히 적용하기 위해 세 가지 방법을 사용합니다:
+
+```bash
+# 1. Dockerfile에서 ENV 설정
+ENV NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
+
+# 2. build_ui.sh에서 export
+export NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
+
+# 3. .env.production 파일 생성 (가장 확실)
+cat > .env.production << EOF
+NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
+EOF
+```
+
+이렇게 3중으로 설정하면 Next.js 빌드 시 확실하게 환경 변수가 적용됩니다.
 
 ## 🚀 적용 방법
 
@@ -363,6 +406,14 @@ docker run -p 4000:4000 \
    
 5. ✅ `Dockerfile` (라인 24-25)
    - UI 빌드 시 `NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true` 환경 변수 설정
+   
+6. ✅ `docker/build_admin_ui.sh` (라인 11-18, 50-53)
+   - Enterprise 모드가 아니어도 기본 UI를 빌드하도록 수정 (환경 변수 적용을 위해)
+   
+7. ✅ `ui/litellm-dashboard/build_ui.sh` (라인 26-53)
+   - 환경 변수 디버깅 정보 추가
+   - `.env.production` 파일 생성하여 Next.js 빌드 시 환경 변수 확실히 적용
+   - `npm install` 추가하여 의존성 설치
 
 ### 다음 단계:
 ```bash

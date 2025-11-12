@@ -23,7 +23,33 @@ fi
 echo "Contents of ui_colors.json:"
 cat ui_colors.json
 
-# Run npm build
+# Print environment variable status
+echo ""
+echo "Environment variables for build:"
+echo "  NEXT_PUBLIC_HIDE_USAGE_INDICATOR=${NEXT_PUBLIC_HIDE_USAGE_INDICATOR}"
+echo ""
+
+# Export environment variable if not already set (for safety)
+if [ -z "$NEXT_PUBLIC_HIDE_USAGE_INDICATOR" ]; then
+  export NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
+  echo "Setting NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true"
+fi
+
+# Create .env.production file to ensure environment variables are applied
+echo "Creating .env.production file..."
+cat > .env.production << EOF
+NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
+EOF
+
+echo "Contents of .env.production:"
+cat .env.production
+echo ""
+
+# Install dependencies
+echo "Installing npm dependencies..."
+npm install
+
+# Run npm build with environment variable
 npm run build
 
 # Check if the build was successful

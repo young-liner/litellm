@@ -24,7 +24,7 @@ set -e
 GCR_REGISTRY="us.gcr.io"
 GCP_PROJECT="liner-219011"
 IMAGE_NAME="litellm-proxy/omni"
-IMAGE_TAG="custom-2"
+IMAGE_TAG="custom-5"
 FULL_IMAGE_NAME="${GCR_REGISTRY}/${GCP_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 # Docker configuration
@@ -32,7 +32,7 @@ DOCKERFILE="Dockerfile"
 BUILD_CONTEXT="../"  # Build from project root
 
 # Platform configuration (M4 is ARM64)
-DEFAULT_PLATFORM="linux/arm64"
+DEFAULT_PLATFORM="linux/amd64"
 MULTI_PLATFORM="linux/amd64,linux/arm64"
 
 # Colors for output
