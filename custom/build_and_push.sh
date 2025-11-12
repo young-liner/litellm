@@ -24,7 +24,7 @@ set -e
 GCR_REGISTRY="us.gcr.io"
 GCP_PROJECT="liner-219011"
 IMAGE_NAME="litellm-proxy/omni"
-IMAGE_TAG="custom-5"
+IMAGE_TAG="custom-11"
 FULL_IMAGE_NAME="${GCR_REGISTRY}/${GCP_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 # Docker configuration
@@ -116,8 +116,12 @@ build_image() {
     log_info "Image: ${FULL_IMAGE_NAME}"
     log_info "Context: ${BUILD_CONTEXT}"
     
-    # Build the image
+    # Build the image with detailed output
+    # Use --progress=plain for detailed build logs
+    # Use --no-cache to force rebuild of all layers
     docker build \
+        --no-cache \
+        --progress=plain \
         --platform ${platform} \
         -t ${FULL_IMAGE_NAME} \
         -f ${BUILD_CONTEXT}/${DOCKERFILE} \

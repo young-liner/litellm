@@ -235,6 +235,28 @@ EOF
 
 이렇게 3중으로 설정하면 Next.js 빌드 시 확실하게 환경 변수가 적용됩니다.
 
+**🎯 최종 해결책 - UsageIndicator 컴포넌트 직접 수정:**
+
+환경 변수 방식이 계속 작동하지 않아, 가장 직접적이고 확실한 방법을 적용했습니다:
+
+**파일**: `ui/litellm-dashboard/src/components/usage_indicator.tsx`
+
+```typescript
+export default function UsageIndicator({ accessToken, width = 220 }: UsageIndicatorProps) {
+  // Force return null to never render the usage panel
+  return null;
+}
+```
+
+**장점:**
+- ✅ 100% 확실하게 Usage 패널 제거
+- ✅ 환경 변수에 의존하지 않음
+- ✅ 빌드 설정과 무관하게 작동
+- ✅ 코드가 명확하고 간단함
+
+**복원 방법:**
+원본 코드가 파일 하단에 주석으로 보관되어 있습니다. 필요시 주석을 해제하고 `return null` 라인을 제거하면 됩니다.
+
 ## 🚀 적용 방법
 
 ### 1. 환경 변수 설정 (.env 파일)
@@ -337,6 +359,44 @@ litellm/
 
 ## 🐳 Docker 이미지 빌드 및 배포
 
+### ⚠️ 중요: 빌드 문제 해결
+
+#### 1. Docker 캐시 문제
+Docker 빌드 시 레이어 캐시로 인해 UI가 새로 빌드되지 않을 수 있습니다.
+이 경우 `--no-cache` 옵션이 자동으로 적용됩니다.
+
+#### 2. Node 버전 호환성 문제 (해결됨)
+- **문제 1**: Node v18.17.0 사용 시 npm 호환성 에러 발생
+  - **에러**: `npm ERR! notsup Required: {"node":"^20.17.0 || >=22.9.0"}`
+  - **해결**: `docker/build_admin_ui.sh`에서 Node v20 사용하도록 수정
+
+- **문제 2**: nvm 버전 인식 문제
+  - **에러**: `! WARNING: Version 'v20' does not exist.`
+  - **원인**: `nvm install v20`은 v20.19.5를 설치하지만, `nvm use v20`은 정확히 "v20" 버전을 찾으려고 시도
+  - **해결**: `v20` 대신 `20` 사용 (버전 prefix 제거)
+    - `nvm install 20` → 최신 Node 20.x 설치
+    - `nvm use 20` → 설치된 Node 20.x 사용
+
+- **문제 3**: subshell에서 nvm 환경 미전달
+  - **에러**: `N/A: version "20 -> N/A" is not yet installed.`
+  - **원인**: `build_admin_ui.sh`에서 `./build_ui.sh`를 실행할 때 새로운 subshell에서 실행되어 nvm 환경이 전달되지 않음
+  - **시도한 해결책**: `bash -c "source $NVM_DIR/nvm.sh && nvm use 20 && ./build_ui.sh"`로 변경
+  - **결과**: 여전히 실패 (nvm이 subshell에서 Node를 찾지 못함)
+
+- **문제 4**: nvm 명령어 자체의 불안정성
+  - **에러**: `! WARNING: Version '20' does not exist.` (nvm install은 성공했지만 nvm use는 실패)
+  - **원인**: nvm의 alias 및 버전 인식 메커니즘이 Docker 빌드 환경에서 불안정
+  - **해결**: nvm 명령 완전히 우회
+    - 설치된 Node 바이너리 경로를 직접 찾아서 PATH에 추가
+    - `NODE_VERSION=$(ls $NVM_DIR/versions/node/ | grep '^v20' | sort -V | tail -1)`
+    - `export PATH="$NVM_DIR/versions/node/$NODE_VERSION/bin:$PATH"`
+
+- **문제 5**: Next.js linting 에러 (최종 해결)
+  - **에러**: `Error: 'useState' is defined but never used. unused-imports/no-unused-imports`
+  - **원인**: `usage_indicator.tsx`에서 `return null`로 변경했지만 사용하지 않는 import들이 남아있음
+  - **해결**: 사용하지 않는 모든 import와 불필요한 타입 정의 제거
+  - **결과**: UI가 정상적으로 빌드되고 `usage_indicator.tsx`의 `return null` 코드가 적용됨
+
 ### GCR에 이미지 빌드 & 푸시
 
 macOS M4 환경에서 Colima를 사용하여 Docker 이미지를 빌드하고 GCP GCR에 푸시합니다.
@@ -414,6 +474,26 @@ docker run -p 4000:4000 \
    - 환경 변수 디버깅 정보 추가
    - `.env.production` 파일 생성하여 Next.js 빌드 시 환경 변수 확실히 적용
    - `npm install` 추가하여 의존성 설치
+   
+8. ✅ `ui/litellm-dashboard/src/components/usage_indicator.tsx` (완전 재작성)
+   - **최종 해결책**: 컴포넌트를 완전히 비활성화하여 항상 `null` 반환
+   - 환경 변수 방식이 작동하지 않아 직접 코드 수정으로 해결
+   - 사용하지 않는 import 및 타입 제거 (linting 에러 해결)
+
+9. ✅ `docker/build_admin_ui.sh` (Node 버전 업데이트)
+   - Node v18.17.0 → 20으로 변경 (`nvm install 20`, `nvm use 20`)
+   - npm 버전 호환성 문제 해결
+   - `v20` 대신 `20` 사용으로 nvm 버전 인식 문제 해결
+
+10. ✅ `ui/litellm-dashboard/build_ui.sh` (간소화)
+   - nvm 설치/설정 로직 제거 (build_admin_ui.sh에서 처리)
+   - Node.js 버전 확인만 수행
+   
+11. ✅ `docker/build_admin_ui.sh` (Node PATH 직접 설정) - **최종 수정**
+   - nvm 명령 대신 설치된 Node 바이너리를 직접 PATH에 추가
+   - `NODE_VERSION=$(ls $NVM_DIR/versions/node/ | grep '^v20' | sort -V | tail -1)`
+   - `export PATH="$NVM_DIR/versions/node/$NODE_VERSION/bin:$PATH"`
+   - nvm subshell 문제 완전히 회피
 
 ### 다음 단계:
 ```bash

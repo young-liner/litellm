@@ -1,55 +1,34 @@
 #!/bin/bash
 
-# Check if nvm is not installed
-if ! command -v nvm &> /dev/null; then
-  # Install nvm
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
-
-  # Source nvm script in the current session
-  export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-fi
-
-# Use nvm to set the required Node.js version
-nvm use v20
-
-# Check if nvm use was successful
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to switch to Node.js v20. Deployment aborted."
-  exit 1
-fi
+# Note: This script expects Node to be already in PATH by build_admin_ui.sh
+# Verify Node.js version
+echo ""
+echo "==================================="
+echo "Building LiteLLM Admin UI"
+echo "==================================="
+echo "Node version: $(node --version)"
+echo "npm version: $(npm --version)"
+echo ""
 
 # print contents of ui_colors.json
-echo "Contents of ui_colors.json:"
+echo "UI Colors configuration:"
 cat ui_colors.json
-
-# Print environment variable status
 echo ""
-echo "Environment variables for build:"
+
+# Set environment variable
+export NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
+
+echo "Environment variables:"
 echo "  NEXT_PUBLIC_HIDE_USAGE_INDICATOR=${NEXT_PUBLIC_HIDE_USAGE_INDICATOR}"
-echo ""
-
-# Export environment variable if not already set (for safety)
-if [ -z "$NEXT_PUBLIC_HIDE_USAGE_INDICATOR" ]; then
-  export NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
-  echo "Setting NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true"
-fi
-
-# Create .env.production file to ensure environment variables are applied
-echo "Creating .env.production file..."
-cat > .env.production << EOF
-NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
-EOF
-
-echo "Contents of .env.production:"
-cat .env.production
 echo ""
 
 # Install dependencies
 echo "Installing npm dependencies..."
 npm install
 
-# Run npm build with environment variable
+# Run npm build
+echo ""
+echo "Building Next.js application..."
 npm run build
 
 # Check if the build was successful

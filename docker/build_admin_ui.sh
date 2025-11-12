@@ -43,8 +43,8 @@ else
 fi
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
 source ~/.nvm/nvm.sh
-nvm install v18.17.0
-nvm use v18.17.0
+nvm install 20
+nvm use 20
 npm install -g npm
 
 # copy enterprise colors if in enterprise mode
@@ -58,7 +58,18 @@ cd ui/litellm-dashboard
 # ensure have access to build_ui.sh
 chmod +x ./build_ui.sh
 
-# run ./build_ui.sh
+# Export NVM environment and add Node to PATH directly
+export NVM_DIR="$HOME/.nvm"
+# Find the installed Node 20 version and add to PATH
+NODE_VERSION=$(ls $NVM_DIR/versions/node/ | grep '^v20' | sort -V | tail -1)
+export PATH="$NVM_DIR/versions/node/$NODE_VERSION/bin:$PATH"
+
+echo "Using Node version: $NODE_VERSION"
+echo "Node path: $(which node)"
+node --version
+npm --version
+
+# run ./build_ui.sh with Node in PATH
 ./build_ui.sh
 
 # return to root directory
