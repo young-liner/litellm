@@ -404,7 +404,10 @@ const Sidebar2: React.FC<SidebarProps> = ({ accessToken, userRole, defaultSelect
             }))}
           />
         </ConfigProvider>
-        {isAdminRole(userRole) && !collapsed && <UsageIndicator accessToken={accessToken} width={220} />}
+        {isAdminRole(userRole) && 
+         !collapsed && 
+         process.env.NEXT_PUBLIC_HIDE_USAGE_INDICATOR !== 'true' && 
+         <UsageIndicator accessToken={accessToken} width={220} />}
       </Sider>
     </Layout>
   );

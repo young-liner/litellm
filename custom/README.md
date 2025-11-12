@@ -44,6 +44,18 @@ if _has_user_setup_sso():
     )
 ```
 
+### 4. UI Usage 패널 표시
+- **파일**: `ui/litellm-dashboard/src/app/(dashboard)/components/Sidebar2.tsx`
+- **라인**: 407
+- **동작**: Admin UI 왼쪽 하단에 Usage 패널을 표시 (환경 변수로 제어 가능)
+
+```tsx
+{isAdminRole(userRole) && 
+ !collapsed && 
+ process.env.NEXT_PUBLIC_HIDE_USAGE_INDICATOR !== 'true' && 
+ <UsageIndicator accessToken={accessToken} width={220} />}
+```
+
 ## 💡 해결 방법
 
 ### ✅ 옵션 1: SSO 비활성화 (가장 간단)
@@ -140,6 +152,46 @@ if not premium_user:
 #         )
 ```
 
+### 4. UI Usage 패널 숨기기 (환경 변수로 제어)
+
+#### (1) Sidebar 컴포넌트 수정
+**파일**: `ui/litellm-dashboard/src/app/(dashboard)/components/Sidebar2.tsx`
+
+```tsx
+# 원본 (라인 407)
+{isAdminRole(userRole) && !collapsed && <UsageIndicator accessToken={accessToken} width={220} />}
+
+# 수정 후 - 환경 변수로 제어 가능
+{isAdminRole(userRole) && 
+ !collapsed && 
+ process.env.NEXT_PUBLIC_HIDE_USAGE_INDICATOR !== 'true' && 
+ <UsageIndicator accessToken={accessToken} width={220} />}
+```
+
+#### (2) Dockerfile에 환경 변수 추가
+**파일**: `Dockerfile`
+
+```dockerfile
+# 원본 (라인 22-25)
+# Copy the current directory contents into the container at /app
+COPY . .
+
+# Build Admin UI
+RUN chmod +x docker/build_admin_ui.sh && ./docker/build_admin_ui.sh
+
+# 수정 후 - UI 빌드 전에 환경 변수 설정
+# Copy the current directory contents into the container at /app
+COPY . .
+
+# Set environment variable to hide usage indicator in UI
+ENV NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
+
+# Build Admin UI
+RUN chmod +x docker/build_admin_ui.sh && ./docker/build_admin_ui.sh
+```
+
+**참고**: Dockerfile에 직접 설정되어 있으므로, Docker 이미지를 빌드하면 자동으로 Usage 패널이 숨겨집니다.
+
 ## 🚀 적용 방법
 
 ### 1. 환경 변수 설정 (.env 파일)
@@ -154,12 +206,16 @@ DATABASE_URL=postgresql://llmproxy:dbpassword9090@db:5432/litellm
 PORT=4000
 STORE_MODEL_IN_DB=True
 LITELLM_LOG=INFO
+
+# UI 설정 (선택사항)
+NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true  # Usage 패널 숨기기 (true/false)
 ```
 
 **중요:**
 - `LITELLM_MASTER_KEY`: Admin UI 접근에 사용되는 마스터 키
 - `LITELLM_SALT_KEY`: DB에 저장된 credential 암호화에 사용 (한 번 설정하면 변경 불가!)
 - `DATABASE_URL`: docker-compose.yml의 DB 설정과 일치해야 함
+- `NEXT_PUBLIC_HIDE_USAGE_INDICATOR`: Admin UI 왼쪽 하단 Usage 패널 표시 여부 (`true`로 설정 시 숨김)
 
 **프로덕션 환경에서는 반드시 키를 변경하세요:**
 ```bash
@@ -236,6 +292,54 @@ litellm/
                 └── networking.tsx        # /user/available_users API 호출
 ```
 
+## 🐳 Docker 이미지 빌드 및 배포
+
+### GCR에 이미지 빌드 & 푸시
+
+macOS M4 환경에서 Colima를 사용하여 Docker 이미지를 빌드하고 GCP GCR에 푸시합니다.
+
+```bash
+# custom 디렉토리로 이동
+cd custom
+
+# 이미지 빌드 및 푸시 (한번에)
+./build_and_push.sh
+
+# 빌드만 수행 (푸시 안 함)
+./build_and_push.sh --build-only
+
+# 푸시만 수행 (이미지가 이미 빌드되어 있을 때)
+./build_and_push.sh --push-only
+
+# 멀티 플랫폼 빌드 (amd64 + arm64)
+./build_and_push.sh --multi-platform
+
+# 도움말
+./build_and_push.sh --help
+```
+
+**빌드 전 준비사항:**
+1. Colima가 실행 중인지 확인: `colima status`
+2. gcloud CLI가 설치되어 있는지 확인: `gcloud --version`
+3. GCP 프로젝트에 로그인: `gcloud auth login`
+4. GCP 프로젝트 설정: `gcloud config set project liner-219011`
+
+**빌드된 이미지:**
+```
+us.gcr.io/liner-219011/litellm-proxy/omni:custom-1
+```
+
+**이미지 사용:**
+```bash
+# 이미지 다운로드
+docker pull us.gcr.io/liner-219011/litellm-proxy/omni:custom-1
+
+# 컨테이너 실행
+docker run -p 4000:4000 \
+  -e LITELLM_MASTER_KEY=sk-1234 \
+  us.gcr.io/liner-219011/litellm-proxy/omni:custom-1
+```
+
 ## 🔗 참고 링크
 
 - [LiteLLM 공식 문서](https://docs.litellm.ai/)
@@ -253,6 +357,12 @@ litellm/
    
 3. ✅ `enterprise/litellm_enterprise/proxy/management_endpoints/internal_user_endpoints.py` (라인 38-47)
    - UI 표시용 5명 제한 정보 제거
+   
+4. ✅ `ui/litellm-dashboard/src/app/(dashboard)/components/Sidebar2.tsx` (라인 407-410)
+   - UI Usage 패널을 환경 변수로 제어 가능하도록 수정
+   
+5. ✅ `Dockerfile` (라인 24-25)
+   - UI 빌드 시 `NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true` 환경 변수 설정
 
 ### 다음 단계:
 ```bash

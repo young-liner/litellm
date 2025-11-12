@@ -21,6 +21,9 @@ RUN pip install --upgrade pip>=24.3.1 && \
 # Copy the current directory contents into the container at /app
 COPY . .
 
+# Set environment variable to hide usage indicator in UI
+ENV NEXT_PUBLIC_HIDE_USAGE_INDICATOR=true
+
 # Build Admin UI
 RUN chmod +x docker/build_admin_ui.sh && ./docker/build_admin_ui.sh
 
